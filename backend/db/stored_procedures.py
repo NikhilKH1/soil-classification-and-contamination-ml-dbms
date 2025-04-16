@@ -488,4 +488,48 @@ def get_regional_fertility_reports(conn, region_name):
         print(f"Error retrieving regional fertility data: {e}")
         return []
 
+def submit_soil_test_results(soil_id, n, p, k, ca, mg, s, lime, c, moisture):
+    conn = get_connection()
+    try:
+        with conn.cursor() as cursor:
+            cursor.callproc("sp_submit_soil_test_results", [soil_id, n, p, k, ca, mg, s, lime, c, moisture])
+            conn.commit()
+    finally:
+        conn.close()
+
+
+def classify_soil_sample(soil_id):
+    conn = get_connection()
+    try:
+        with conn.cursor() as cursor:
+            cursor.callproc("sp_classify_soil_sample", [soil_id])
+            result = cursor.fetchone()
+            conn.commit()
+            return result  # contains Fertility_Class_ID
+    finally:
+        conn.close()
+
+def get_lab_pending_samples(lab_id):
+    conn = get_connection()
+    try:
+        with conn.cursor() as cursor:
+            cursor.callproc("sp_get_lab_pending_samples", [lab_id])
+            return cursor.fetchall()
+    finally:
+        conn.close()
+
+def request_soil_sample_tested(farmer_id, lab_id, n, p, k, ca, mg, s, lime, c, moisture, lat, lon):
+    conn = get_connection()
+    try:
+        with conn.cursor() as cursor:
+            cursor.callproc("sp_request_soil_sample_tested", [
+                farmer_id, lab_id, n, p, k, ca, mg, s, lime, c, moisture, lat, lon
+            ])
+            result = cursor.fetchone()
+            conn.commit()
+            return result
+    finally:
+        conn.close()
+
+
 

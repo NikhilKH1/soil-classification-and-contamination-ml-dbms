@@ -1,4 +1,4 @@
-USE crop_fertlizer_db;
+USE crop_fertilizer_db;
 
 -- Insert Users with Roles
 INSERT INTO User (first_name, last_name, email, password, contact_number, role) VALUES
@@ -53,22 +53,24 @@ INSERT INTO Fertility_Class (
 
 -- Crops
 INSERT INTO Crop (crop_name, fertility_class_id) VALUES
-('Wheat', 1), ('Rice', 1), ('Corn', 2), ('Soybean', 3), ('Tomato', 2);
+('Wheat', 1), ('Rice', 1), ('Corn', 2), ('Soybean', 3), ('Tomato', 2), ('Potato', 4);
 
 -- Fertilizers
 INSERT INTO Fertilizer (fertilizer_name, npk_ratio, fertility_class_id) VALUES
 ('Urea', '46-0-0', 1),
 ('DAP', '18-46-0', 2),
-('Compost', '2-1-1', 4);
+('Compost', '2-1-1', 4),
+('Ammonium Sulfate', '21-0-0', 3);
 
--- Soil Samples
+-- Soil_Sample
 INSERT INTO Soil_Sample (
     farmer_id, lab_id, nitrogen, phosphorus, potassium,
     calcium, magnesium, sulfur, lime, carbon, moisture,
-    test_date, farm_latitude, farm_longitude, fertility_class_id
+    test_date, farm_latitude, farm_longitude, fertility_class_id, sample_status
 ) VALUES
-(2, 1, 75, 50, 65, 40, 20, 10, 2, 4, 30, NOW(), 26.9124, 75.7873, 1),
-(4, 2, 35, 25, 30, 20, 12, 4, 0.9, 1.5, 12, NOW(), 18.5204, 73.8567, 3);
+(2, 1, 75, 50, 65, 40, 20, 10, 2, 4, 30, NOW(), 26.9124, 75.7873, 1, 'tested'),
+(4, 2, 35, 25, 30, 20, 12, 4, 0.9, 1.5, 12, NOW(), 18.5204, 73.8567, 3, 'tested');
+
 
 -- Crop Growth
 INSERT INTO Crop_Growth (farmer_id, crop_id, start_date, end_date, status, yield_quantity) VALUES
@@ -93,5 +95,4 @@ INSERT INTO Sample_Testing (technician_id, lab_id, soil_id)
 VALUES
 (3, 1, 1),  -- Technician 3 tested Soil Sample 1 at Lab 1
 (7, 1, 2);  -- Technician 7 tested Soil Sample 2 at Lab 1
-
 

@@ -128,6 +128,7 @@ CREATE TABLE Soil_Sample (
     farm_latitude DECIMAL(9,6) NOT NULL,
     farm_longitude DECIMAL(9,6) NOT NULL,
     fertility_class_id INT,
+    sample_status ENUM('waiting', 'tested') DEFAULT 'waiting',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 

@@ -26,7 +26,11 @@ from db.stored_procedures import (
     remove_soil_lab,
     update_user_contact,
     set_fertility_thresholds,
-    get_regional_fertility_reports
+    get_regional_fertility_reports,
+    submit_soil_test_results,
+    classify_soil_sample,
+    get_lab_pending_samples,
+    request_soil_sample_tested
 )
 
 
@@ -325,7 +329,6 @@ def request_soil_sample_flow(conn, farmer_id):
             print("\n Invalid Lab ID. Please select from the list above.")
             return
 
-
         # Shared variables
         n = p = k = ca = mg = s = lime = c = moisture = None
 
@@ -341,14 +344,21 @@ def request_soil_sample_flow(conn, farmer_id):
             c = float(input("Carbon (C): "))
             moisture = float(input("Moisture %: "))
 
-        request_soil_sample(
-            farmer_id, lab_id, n, p, k, ca, mg, s, lime, c, moisture, lat, lon
-        )
+            result = request_soil_sample_tested(
+                farmer_id, lab_id, n, p, k, ca, mg, s, lime, c, moisture, lat, lon
+            )
+            print("\nSoil sample request submitted and classified successfully!")
+            print(f"Sample ID: {result['soil_id']}, Fertility Class ID: {result['fertility_class_id']}")
 
-        print("\n Soil sample request submitted successfully!")
+        elif mode == "2":
+            request_soil_sample(
+                farmer_id, lab_id, n, p, k, ca, mg, s, lime, c, moisture, lat, lon
+            )
+            print("\nSoil sample request submitted successfully! (pending lab technician input)")
 
     except Exception as e:
         print(f"\n Error requesting soil sample: {e}")
+
 
 def view_fertilizer_recommendations_flow(conn, farmer_id):
     print("\n-- Recommended Fertilizers Based on Soil Fertility --")
@@ -418,17 +428,20 @@ def add_farm_location_flow(conn, farmer_id):
     except Exception as e:
         print(f"Error adding farm location: {e}")
 
-def view_assigned_samples(conn, technician_id):
+def view_lab_pending_samples(conn, lab_id):
+    print("\n-- Pending Soil Samples in Your Lab --")
     try:
-        samples = get_assigned_samples(technician_id)
+        samples = get_lab_pending_samples(lab_id)
         if not samples:
-            print("No soil samples assigned to you yet.")
-        else:
-            print("\nAssigned Soil Samples:")
-            for s in samples:
-                print(f"  - Soil ID: {s['soil_id']} | Date: {s['test_date']}")
+            print("No pending soil samples for your lab.")
+            return
+
+        for s in samples:
+            print(f"  - Soil ID: {s['soil_id']} | Farmer ID: {s['farmer_id']} | Date: {s['test_date']}")
+
     except Exception as e:
-        print(f"Error: {e}")
+        print(f"Error fetching lab samples: {e}")
+
 
 
 def lab_technician_dashboard(conn, user):
@@ -445,9 +458,9 @@ def lab_technician_dashboard(conn, user):
         choice = input("Enter your choice: ").strip()
 
         if choice == "1":
-            view_assigned_samples(conn, technician_id)
+            view_lab_pending_samples(conn, user['lab_id'])
         elif choice == "2":
-            submit_test_results(conn)
+            submit_test_results(conn, user)
         elif choice == "3":
             view_soil_sample_results_flow(conn)
         elif choice == "4":
@@ -456,6 +469,48 @@ def lab_technician_dashboard(conn, user):
             break
         else:
             print("Invalid input. Choose 1-5.")
+
+def submit_test_results(conn, technician):
+    print("\n-- Submit Soil Test Results --")
+    try:
+        lab_id = technician['lab_id']
+        pending_samples = get_lab_pending_samples(lab_id)
+
+        if not pending_samples:
+            print("No pending soil samples to update.")
+            return
+
+        print("\nPending Samples in Your Lab:")
+        for s in pending_samples:
+            print(f"  - Soil ID: {s['soil_id']} | Farmer ID: {s['farmer_id']} | Date: {s['test_date']}")
+
+        valid_ids = [s['soil_id'] for s in pending_samples]
+        soil_id = int(input("\nEnter the Soil Sample ID to update: "))
+        if soil_id not in valid_ids:
+            print("Invalid selection. Please choose a Soil ID from the list.")
+            return
+
+        print("Enter updated nutrient values:")
+        n = float(input("Nitrogen (N): "))
+        p = float(input("Phosphorus (P): "))
+        k = float(input("Potassium (K): "))
+        ca = float(input("Calcium (Ca): "))
+        mg = float(input("Magnesium (Mg): "))
+        s = float(input("Sulfur (S): "))
+        lime = float(input("Lime: "))
+        c = float(input("Carbon (C): "))
+        moisture = float(input("Moisture %: "))
+
+        submit_soil_test_results(soil_id, n, p, k, ca, mg, s, lime, c, moisture)
+        result = classify_soil_sample(soil_id)
+
+        print(f"\n✅ Soil sample {soil_id} classified as Fertility Class ID: {result['Fertility_Class_ID']}")
+        print("Test results submitted and sample marked as 'tested' successfully.")
+
+    except Exception as e:
+        print(f"Error submitting test results: {e}")
+
+
 
 def admin_dashboard(conn, user):
     """Admin Dashboard offering multiple administrative functionalities."""
