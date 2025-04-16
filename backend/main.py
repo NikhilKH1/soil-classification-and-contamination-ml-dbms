@@ -21,6 +21,7 @@ from db.stored_procedures import (
     map_crop_to_farm
 )
 
+
 def main():
     try:
         conn = get_connection()
