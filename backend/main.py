@@ -693,6 +693,7 @@ def export_report_to_csv(report_data, filename="regional_fertility_report.csv"):
             print(f"Report exported to {filename}")
     except Exception as e:
         print(f"Error exporting report: {e}")
+        
 
 
 if __name__ == "__main__":
