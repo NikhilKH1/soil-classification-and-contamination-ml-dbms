@@ -396,4 +396,96 @@ def get_all_labs():
     finally:
         conn.close()
 
+def get_all_users():
+    conn = get_connection()
+    try:
+        with conn.cursor() as cursor:
+            cursor.callproc("sp_get_all_users")
+            result = cursor.fetchall()
+            return result
+    finally:
+        conn.close()
+
+
+def get_all_soil_labs():
+    conn = get_connection()
+    try:
+        with conn.cursor() as cursor:
+            cursor.callproc("sp_get_all_soil_labs")
+            result = cursor.fetchall()
+            return result
+    finally:
+        conn.close()
+
+def add_soil_lab(lab_name, address, contact):
+    conn = get_connection()
+    try:
+        with conn.cursor() as cursor:
+            cursor.callproc("sp_add_soil_lab", [lab_name, address, contact])
+            conn.commit()
+    finally:
+        conn.close()
+
+def remove_soil_lab(lab_id):
+    conn = get_connection()
+    try:
+        with conn.cursor() as cursor:
+            cursor.callproc("sp_remove_soil_lab", [lab_id])
+            conn.commit()
+    finally:
+        conn.close()
+
+
+def set_fertility_thresholds(fertility_class_id, threshold_values):
+    try:
+        params = {
+            'in_fertility_class_id': fertility_class_id,
+            'in_min_nitrogen': threshold_values.get('min_nitrogen', None),
+            'in_max_nitrogen': threshold_values.get('max_nitrogen', None),
+            'in_min_phosphorus': threshold_values.get('min_phosphorus', None),
+            'in_max_phosphorus': threshold_values.get('max_phosphorus', None),
+            'in_min_potassium': threshold_values.get('min_potassium', None),
+            'in_max_potassium': threshold_values.get('max_potassium', None),
+            'in_min_calcium': threshold_values.get('min_calcium', None),
+            'in_max_calcium': threshold_values.get('max_calcium', None),
+            'in_min_carbon': threshold_values.get('min_carbon', None),
+            'in_max_carbon': threshold_values.get('max_carbon', None),
+            'in_min_lime': threshold_values.get('min_lime', None),
+            'in_max_lime': threshold_values.get('max_lime', None),
+            'in_min_sulfur': threshold_values.get('min_sulfur', None),
+            'in_max_sulfur': threshold_values.get('max_sulfur', None),
+            'in_min_moisture': threshold_values.get('min_moisture', None),
+            'in_max_moisture': threshold_values.get('max_moisture', None)
+        }
+        
+        conn = get_connection()
+        with conn.cursor() as cursor:
+            cursor.callproc("sp_set_fertility_thresholds", list(params.values()))
+            conn.commit()
+        print("Fertility thresholds updated successfully.")
+    except Exception as e:
+        print(f"Error in set_fertility_thresholds: {e}")
+    finally:
+        conn.close()
+
+
+def get_regional_fertility_reports(conn, region_name):
+    try:
+        with conn.cursor() as cursor:
+            # Call the stored procedure with the region_name as parameter
+            cursor.callproc('sp_get_regional_fertility_reports', (region_name,))
+            
+            # Fetch all the results from the stored procedure
+            result = cursor.fetchall()
+            
+            # If no results are found
+            if not result:
+                print(f"No fertility data found for region: {region_name}")
+                return []
+            
+            return result
+    except Exception as e:
+        print(f"Error retrieving regional fertility data: {e}")
+        return []
+
 
