@@ -1,7 +1,6 @@
 from .connection import get_connection
 import pymysql
 
-
 def create_user(first_name, last_name, email, password, contact, role,
                 admin_date=None, farm_size=None, crop_count=None,
                 cert=None, specialization=None, hire_date=None, lab_id=None):
@@ -28,6 +27,20 @@ def map_crop_to_farm(lat, lon, crop_id):
     finally:
         conn.close()
 
+def admin_exists(conn):
+    try:
+        with conn.cursor() as cursor:
+            args = [0] 
+            cursor.callproc("sp_admin_exists", args)
+
+            cursor.execute("SELECT @_sp_admin_exists_0")
+            result = cursor.fetchone()
+            if result:
+                return result['@_sp_admin_exists_0'] >= 1
+            return False
+    except Exception as e:
+        print(f"Error checking admin existence: {e}")
+        return False
 
 def authenticate_user(email, password):
     conn = get_connection()
@@ -171,7 +184,6 @@ def get_combined_recommendations(soil_id):
     finally:
         conn.close()
 
-
 def record_crop_growth(farmer_id, crop_id, start_date, end_date, status, yield_qty):
     conn = get_connection()
     try:
@@ -213,16 +225,6 @@ def map_farm_crop(latitude, longitude, crop_id):
     finally:
         conn.close()
 
-
-def get_regional_fertility_reports(region_name):
-    conn = get_connection()
-    try:
-        with conn.cursor() as cursor:
-            cursor.callproc("sp_get_regional_fertility_reports", [region_name])
-            result = cursor.fetchall()
-            return result
-    finally:
-        conn.close()
 
 def set_fertility_thresholds(fert_class_id, min_n, max_n, min_p, max_p,
                              min_k, max_k, min_ca, max_ca, min_c, max_c,
@@ -468,7 +470,7 @@ def get_regional_fertility_reports(conn, region_name):
             cursor.callproc('sp_get_regional_fertility_reports', (region_name,))
             
             result = cursor.fetchall()
-
+            
             if not result:
                 print(f"No fertility data found for region: {region_name}")
                 return []
@@ -536,6 +538,37 @@ def get_all_classified_soil_samples(farmer_id):
     finally:
         conn.close()
 
+def get_all_fertility_classes():
+    conn = get_connection()
+    try:
+        with conn.cursor() as cursor:
+            cursor.callproc("sp_get_all_fertility_classes")
+            result = cursor.fetchall()
+            return result
+    finally:
+        conn.close()
+
+def get_fertility_class_by_id(class_id):
+    conn = get_connection()
+    try:
+        with conn.cursor() as cursor:
+            cursor.callproc("sp_get_fertility_class_by_id", [class_id])
+            result = cursor.fetchone()
+            if not result:
+                return None
+            return result
+    finally:
+        conn.close()
+
+def get_all_regions(conn):
+    try:
+        with conn.cursor() as cursor:
+            cursor.callproc("sp_get_all_regions")
+            results = cursor.fetchall()
+            return results
+    except Exception as e:
+        print(f"Error fetching regions: {e}")
+        return []
 
 def get_tested_samples_by_lab(lab_id):
     conn = get_connection()

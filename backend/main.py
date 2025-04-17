@@ -35,7 +35,10 @@ from db.stored_procedures import (
     get_tested_samples_by_lab,
     get_soil_sample_results,
     get_all_crops
-
+    get_all_fertility_classes,
+    get_fertility_class_by_id,
+    get_all_regions,
+    admin_exists
 )
 
 
@@ -98,7 +101,15 @@ def register_user(conn):
         email = input("Enter Email: ")
         password = getpass("Enter Password: ")
         contact = input("Enter Contact: ")
-        role = input("Enter Role (Farmer/Lab_Technician/Admin): ")
+        roles = ['Farmer', 'Lab_Technician']
+        if not admin_exists(conn):
+            roles.append('Admin')
+
+        print(f"Available Roles: {', '.join(roles)}")
+        role = input("Enter Role: ")
+        if role not in roles:
+            print("Invalid role selected.")
+            return
 
         admin_date = farm_size = crop_count = None
         cert = specialization = hire_date = lab_id = None
@@ -320,8 +331,6 @@ def record_crop_growth_flow(conn, farmer_id):
 
     except Exception as e:
         print(f"Error: {e}")
-
-
 
 
 def request_soil_sample_flow(conn, farmer_id):
@@ -616,10 +625,9 @@ def admin_dashboard(conn, user):
         elif choice == "3":
             update_soil_thresholds_flow(conn)
         elif choice == "4":
-            region_name = input("Enter region name to view reports: ")
-            reports = display_regional_fertility_reports(conn, region_name)
+            reports = display_regional_fertility_reports(conn)
 
-            export_option = input("Do you want to export the report to CSV? (y/n): ")
+            export_option = input("\nDo you want to export the report to CSV? (y/n): ")
             if export_option.lower() == 'y':
                 export_report_to_csv(reports, f"{region_name}_regional_fertility_report.csv")
         elif choice == "5":
@@ -710,7 +718,26 @@ def manage_soil_test_labs_flow(conn):
 def update_soil_thresholds_flow(conn):
     print("\n-- Update Soil Fertility Thresholds --")
     try:
+        classes = get_all_fertility_classes()
+        if not classes:
+            print("No fertility classes found.")
+            return
+        
+        print("\nAvailable Fertility Classes:")
+        for cls in classes:
+            print(f"ID: {cls['fertility_class_id']}, Name: {cls['class_name']}")
+        
         class_id = int(input("Enter Fertility Class ID to update: "))
+
+        current = get_fertility_class_by_id(class_id)
+        if not current:
+            print("Invalid class ID.")
+            return
+
+        print("\nCurrent Threshold Values:")
+        for key, value in current.items():
+            if key not in ['fertility_class_id', 'class_name']:
+                print(f"{key.replace('_', ' ').title()}: {value}")
 
         print("Which fertility thresholds would you like to update?")
         print("You can update multiple fields by entering the corresponding numbers separated by commas.")
@@ -733,6 +760,7 @@ def update_soil_thresholds_flow(conn):
         print("To update all fields, enter 'all'.")
 
         threshold_choices = input("Enter your choices (e.g., 1, 2, 3 or 'all'): ").strip()
+
 
         updated_values = {}
 
@@ -792,25 +820,50 @@ def update_soil_thresholds_flow(conn):
                 else:
                     print(f"Invalid choice: {choice}")
                     return
+
         set_fertility_thresholds(class_id, updated_values)
 
     except Exception as e:
         print(f"Error updating threshold: {e}")
 
-def display_regional_fertility_reports(conn, region_name):
-    reports = get_regional_fertility_reports(conn, region_name)
+def display_regional_fertility_reports(conn):
+
+
+    regions = get_all_regions(conn)
+    if not regions:
+        print("No regions found.")
+        return
+    
+    print("\nAvailable Regions:")
+    for idx, region in enumerate(regions, start=1):
+        print(f"{idx}. {region['region_name']}")
+
+    # Step 2: Prompt user to choose
+    try:
+        choice = int(input("\nSelect a region by number: "))
+        if choice < 1 or choice > len(regions):
+            print("Invalid selection.")
+            return
+        selected_region = regions[choice - 1]['region_name']
+    except ValueError:
+        print("Invalid input.")
+        return
+    reports = get_regional_fertility_reports(conn, selected_region)
     
     if not reports:
         return
 
-    print(f"\n-- Regional Fertility Reports for {region_name} --")
+    # Print headers
+    print(f"\n-- Regional Fertility Reports for {selected_region} --")
     print(f"{'Region':<20}{'Total Samples':<15}{'Avg Nitrogen':<15}{'Avg Phosphorus':<15}{'Avg Potassium':<15}{'Avg Moisture':<15}")
     print("-" * 95)
 
+    # Print data
     for row in reports:
         print(f"{row['region_name']:<20}{row['total_samples']:<15}{row['avg_nitrogen']:<15.2f}"
               f"{row['avg_phosphorus']:<15.2f}{row['avg_potassium']:<15.2f}{row['avg_moisture']:<15.2f}")
     return reports
+
 
 def export_report_to_csv(report_data, filename="regional_fertility_report.csv"):
     try:
