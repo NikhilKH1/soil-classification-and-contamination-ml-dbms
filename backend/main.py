@@ -34,7 +34,7 @@ from db.stored_procedures import (
     get_all_classified_soil_samples,
     get_tested_samples_by_lab,
     get_soil_sample_results,
-    get_all_crops
+    get_all_crops,
     get_all_fertility_classes,
     get_fertility_class_by_id,
     get_all_regions,
