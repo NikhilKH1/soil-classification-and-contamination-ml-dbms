@@ -1,5 +1,6 @@
-CREATE DATABASE IF NOT EXISTS crop_fertilizer_db;
-USE crop_fertilizer_db;
+-- Drop database crop_fertilizer_db;
+-- CREATE DATABASE IF NOT EXISTS crop_fertilizer_db;
+-- USE crop_fertilizer_db;
 
 CREATE TABLE User (
     user_id INT PRIMARY KEY AUTO_INCREMENT,
@@ -110,7 +111,7 @@ CREATE TABLE Fertilizer (
         ON DELETE CASCADE ON UPDATE CASCADE
 );
 
--- 10. Soil Sample
+-- 10. Soil Sample 
 CREATE TABLE Soil_Sample (
     soil_id INT PRIMARY KEY AUTO_INCREMENT,
     farmer_id INT NOT NULL,
@@ -129,6 +130,7 @@ CREATE TABLE Soil_Sample (
     farm_longitude DECIMAL(9,6) NOT NULL,
     fertility_class_id INT,
     sample_status ENUM('waiting', 'tested') DEFAULT 'waiting',
+    sample_name VARCHAR(100) DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
