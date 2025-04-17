@@ -2,11 +2,11 @@ USE crop_fertilizer_db;
 
 -- Insert Users with Roles
 INSERT INTO User (first_name, last_name, email, password, contact_number, role) VALUES
-('Ramesh', 'Patel', 'ramesh.patel@example.com', 'pass123', '9876543210', 'Admin'),
+('Ramesh', 'Patel', '123', '123', '9876543210', 'Admin'),
 ('Sita', 'Sharma', 'sita.sharma@example.com', 'sita456', '9123456780', 'Farmer'),
 ('Aman', 'Verma', 'aman.verma@example.com', 'aman789', '9988776655', 'Lab_Technician'),
 ('Sunita', 'Rao', 'sunita.rao@example.com', 'sunita101', '9090909090', 'Farmer'),
-('Vijay', 'Kumar', 'vijay.kumar@example.com', 'vijay202', '9000001111', 'Admin'),
+('Vijay', 'Kumar', 'vijay.kumar@example.com', 'vijay202', '9000001111', 'Lab_Technician'),
 ('Meena', 'Joshi', 'meena.joshi@example.com', 'meena303', '9123487610', 'Farmer'),
 ('Anil', 'Mehta', 'anil.mehta@example.com', 'anil404', '8899776655', 'Lab_Technician'),
 ('Kavita', 'Shah', 'kavita.shah@example.com', 'kavita505', '8989898989', 'Farmer'),
@@ -15,13 +15,12 @@ INSERT INTO User (first_name, last_name, email, password, contact_number, role) 
 
 -- Admins
 INSERT INTO Admin (user_id, hire_date) VALUES
-(1, '2020-01-15'),
-(5, '2021-06-10');
+(1, '2020-01-15');
 
 -- Soil Test Labs
 INSERT INTO Soil_Test_Lab (lab_name, address, contact, admin_id) VALUES
 ('AgriSoil Labs', '123 Green St, Jaipur', '9823456780', 1),
-('SoilCheck Center', '456 Farm Rd, Pune', '9876543212', 5);
+('SoilCheck Center', '456 Farm Rd, Pune', '9876543212', 1);
 
 -- Lab Technicians
 INSERT INTO Lab_Technician (user_id, certification, specialization, hire_date, lab_id) VALUES
