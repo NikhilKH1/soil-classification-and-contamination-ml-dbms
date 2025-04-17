@@ -24,7 +24,6 @@ from db.stored_procedures import (
     get_all_soil_labs,
     add_soil_lab,
     remove_soil_lab,
-    update_user_contact,
     set_fertility_thresholds,
     get_regional_fertility_reports,
     submit_soil_test_results,
@@ -37,7 +36,12 @@ from db.stored_procedures import (
     get_all_crops,
     get_all_fertility_classes,
     get_fertility_class_by_id,
-    get_all_regions
+    get_all_regions,
+    get_yield_estimate,
+    get_years_experience,
+    get_all_lab_technicians_with_experience,
+    delete_crop_growth_record,
+    update_user_details
 )
 
 
@@ -50,6 +54,8 @@ def main():
         return
 
     while True:
+        print("\n🌾 Welcome to Crop & Fertilizer Recommendation System 🌾")
+        print("----------------------------------------------------------")
         print("\nMain Menu:")
         print("1: Register a New User")
         print("2: Login Existing User")
@@ -101,14 +107,13 @@ def register_user(conn):
         password = getpass("Enter Password: ")
         contact = input("Enter Contact: ")
         roles = ['Farmer', 'Lab_Technician', 'Admin']
-        # if not admin_exists(conn):
-        #     roles.append('Admin')
 
         print(f"Available Roles: {', '.join(roles)}")
-        role = input("Enter Role: ")
-        if role not in roles:
-            print("Invalid role selected.")
-            return
+        while True:
+            role = input("Enter Role: ")
+            if role in roles:
+                break
+            print("Invalid role selected. Please choose from the listed options.")
 
         admin_date = farm_size = crop_count = None
         cert = specialization = hire_date = lab_id = None
@@ -119,9 +124,13 @@ def register_user(conn):
             farm_size = float(input("Enter Farm Size (in acres): "))
             crop_count = int(input("Enter Crop Count: "))
         elif role == 'Lab_Technician':
-            cert = input("Enter Certification: ")
-            specialization = input("Enter Specialization: ")
+            cert = input("Enter Certification (e.g., Soil Analyst, Agronomist, Lab Expert): ")
+            specialization = input("Enter Specialization (e.g., Nitrogen Analysis, Mineral Testing, pH Monitoring, Organic Content): ")
             hire_date = input("Enter Hire Date (YYYY-MM-DD): ") or None
+            labs = get_all_labs()
+            print("\nAvailable Labs:")
+            for lab in labs:
+                print(f"{lab['lab_id']}: {lab['lab_name']}")
             lab_id = int(input("Enter Lab ID: "))
 
         user = create_user(
@@ -131,6 +140,7 @@ def register_user(conn):
         )
 
         print(f"\nUser registered successfully")
+        print(f"Welcome {first_name} ({role})")
 
     except Exception as e:
         print(f"\nRegistration error: {e}")
@@ -176,8 +186,9 @@ def farmer_dashboard(conn, user):
         print("7: Record Crop Growth")
         print("8: Update Crop Growth Status")
         print("9: View Crop Growth")
-        print("10: Map Crop to My Farm")
-        print("11: Back to Main Menu")
+        print("10: Delete Crop Growth Record")
+        print("11: Map Crop to My Farm")
+        print("12: Back to Main Menu")
 
         choice = input("Enter your choice: ").strip()
 
@@ -200,11 +211,45 @@ def farmer_dashboard(conn, user):
         elif choice == "9":
             view_crop_growth_flow(conn, farmer_id)
         elif choice == "10":
+            delete_crop_growth_flow(conn, farmer_id)
+        elif choice == "11":  
             map_crop_to_farm_flow(conn, farmer_id)
-        elif choice == "11":
+        elif choice == "12":
             break
         else:
-            print("Invalid choice. Please enter 1 to 11.")
+            print("Invalid choice. Please enter 1 to 12.")
+
+def delete_crop_growth_flow(conn, farmer_id):
+    print("\n-- Delete Crop Growth Record --")
+    try:
+        crops = get_crop_growth_records(farmer_id)
+
+        if not crops:
+            print("You have no crop growth records.")
+            return
+
+        print("\n🌾 Your Crop Growth Records:")
+        for c in crops:
+            print(f"ID: {c['growth_id']} | Crop: {c['crop_name']} | Status: {c['status']}")
+
+        growth_id = int(input("Enter Growth ID to delete: "))
+
+        valid_ids = [c['growth_id'] for c in crops]
+        if growth_id not in valid_ids:
+            print("Invalid Growth ID.")
+            return
+
+        confirm = input("Are you sure you want to delete this record? (y/n): ").strip().lower()
+        if confirm != 'y':
+            print("Deletion cancelled.")
+            return
+
+        delete_crop_growth_record(growth_id)
+        print("Crop growth record deleted. Crop count updated automatically.")
+
+    except Exception as e:
+        print(f"Error deleting crop growth record: {e}")
+
 
 def view_all_soil_results(conn, farmer_id):
     print("\n-- All Soil Test Results --")
@@ -266,10 +311,14 @@ def view_crop_growth_flow(conn, farmer_id):
 
         print("\n🌱 Your Crop Growth Records:")
         for c in crops:
+            est_yield = get_yield_estimate(c['growth_id']) or "N/A"
             print(f"ID: {c['growth_id']} | Crop: {c['crop_name']} | Status: {c['status']} | "
-                  f"Start: {c['start_date']} | End: {c['end_date']} | Yield: {c['yield_quantity']} kg")
+                  f"Start: {c['start_date']} | End: {c['end_date']} | "
+                  f"Yield: {c['yield_quantity']} kg | Est. Yield: {est_yield} kg")
+
     except Exception as e:
         print(f" Error viewing crop growth: {e}")
+
 
 
 def update_crop_growth_flow(conn, farmer_id):
@@ -371,15 +420,15 @@ def request_soil_sample_flow(conn, farmer_id):
 
         if mode == "1":
             print("\nEnter Soil Nutrient Details:")
-            n = float(input("Nitrogen (N): "))
-            p = float(input("Phosphorus (P): "))
-            k = float(input("Potassium (K): "))
-            ca = float(input("Calcium (Ca): "))
-            mg = float(input("Magnesium (Mg): "))
-            s = float(input("Sulfur (S): "))
-            lime = float(input("Lime: "))
-            c = float(input("Carbon (C): "))
-            moisture = float(input("Moisture %: "))
+            n = get_valid_nutrient("Nitrogen (N)")
+            p = get_valid_nutrient("Phosphorus (P)")
+            k = get_valid_nutrient("Potassium (K)")
+            ca = get_valid_nutrient("Calcium (Ca)")
+            mg = get_valid_nutrient("Magnesium (Mg)")
+            s = get_valid_nutrient("Sulfur (S)")
+            lime = get_valid_nutrient("Lime")
+            c = get_valid_nutrient("Carbon (C)")
+            moisture = get_valid_nutrient("Moisture %")
 
             result = request_soil_sample_tested(
                 farmer_id, lab_id, n, p, k, ca, mg, s, lime, c, moisture, lat, lon, sample_name
@@ -395,6 +444,17 @@ def request_soil_sample_flow(conn, farmer_id):
     except Exception as e:
         print(f"\n Error requesting soil sample: {e}")
 
+
+def get_valid_nutrient(field_name):
+    while True:
+        try:
+            value = float(input(f"{field_name}: "))
+            if 0 <= value <= 999.99:
+                return value
+            else:
+                print("Invalid Input. Please enter a number between 0 and 999.99.")
+        except ValueError:
+            print("\nInvalid input. Please enter a numeric value.")
 
 
 def view_fertilizer_recommendations_flow(conn, farmer_id):
@@ -435,7 +495,6 @@ def view_fertilizer_recommendations_flow(conn, farmer_id):
 def view_farmer_soil_results_flow(conn, farmer_id):
     print("\n-- View Soil Test Results --")
     try:
-        print(farmer_id)
         result = get_latest_classified_soil_sample(farmer_id) 
 
         if result:
@@ -539,7 +598,7 @@ def view_soil_sample_results_flow(conn, user):
         result = get_soil_sample_results(soil_id)
 
         if result:
-            print("\n📋 Full Soil Sample Details:")
+            print("\n Full Soil Sample Details:")
             print(f"Sample ID     : {result['soil_id']}")
             print(f"Sample Name   : {result['sample_name'] or 'Unnamed Sample'}")
             print(f"Farmer ID     : {result['farmer_id']}")
@@ -595,8 +654,8 @@ def submit_test_results(conn, technician):
         submit_soil_test_results(soil_id, n, p, k, ca, mg, s, lime, c, moisture)
         result = classify_soil_sample(soil_id)
 
-        print(f"\n✅ Soil sample {soil_id} classified as Fertility Class ID: {result['Fertility_Class_ID']}")
-        print("Test results submitted and sample marked as 'tested' successfully.")
+        print(f"\nSoil sample {soil_id} classified as Fertility Class ID: {result['Fertility_Class_ID']}")
+        print("Test results submitted.")
 
     except Exception as e:
         print(f"Error submitting test results: {e}")
@@ -623,11 +682,13 @@ def admin_dashboard(conn, user):
         elif choice == "3":
             update_soil_thresholds_flow(conn)
         elif choice == "4":
-            reports = display_regional_fertility_reports(conn)
+            region_name, reports = display_regional_fertility_reports(conn)
 
-            export_option = input("\nDo you want to export the report to CSV? (y/n): ")
-            if export_option.lower() == 'y':
-                export_report_to_csv(reports, f"{region_name}_regional_fertility_report.csv")
+            if reports:
+                export_option = input("\nDo you want to export the report to CSV? (y/n): ")
+                if export_option.lower() == 'y':
+                    export_report_to_csv(reports, f"{region_name}_regional_fertility_report.csv")
+
         elif choice == "5":
                 break
         else:
@@ -642,8 +703,9 @@ def admin_manage_users_flow(conn):
     while True:
         print("\n--- Manage Users ---")
         print("1: List All Users")
-        print("2: Update User Contact")
-        print("3: Back to Admin Menu")
+        print("2: Update User Details")
+        print("3: View Lab Technicians with Experience")
+        print("4: Back to Admin Menu")
         
         choice = input("Enter your choice: ").strip()
         
@@ -661,14 +723,30 @@ def admin_manage_users_flow(conn):
         
         elif choice == "2":
             try:
-                user_id = int(input("Enter the User ID to update contact information: "))
-                new_contact = input("Enter the new contact number: ")
-                update_user_contact(user_id, new_contact)
-                print("User contact updated successfully.")
+                user_id = int(input("Enter the User ID to update: "))
+                first_name = input("New First Name (leave blank to keep current): ") or None
+                last_name = input("New Last Name (leave blank to keep current): ") or None
+                email = input("New Email (leave blank to keep current): ") or None
+                contact = input("New Contact Number (leave blank to keep current): ") or None
+
+                update_user_details(user_id, first_name, last_name, email, contact)
+                print("User details updated successfully.")
             except Exception as e:
                 print(f"Error updating user contact: {e}")
-                
+        
         elif choice == "3":
+            try:
+                technicians = get_all_lab_technicians_with_experience()
+                print("\n--- Lab Technicians & Experience ---")
+                for tech in technicians:
+                    print(f"ID: {tech['user_id']} | Name: {tech['first_name']} {tech['last_name']} | "
+                    f"Email: {tech['email']} | Hire Date: {tech['hire_date']} | "
+                    f"Experience: {tech['experience']} years")
+            except Exception as e:
+                print(f"Error fetching technicians: {e}")
+
+                
+        elif choice == "4":
             print("Returning to Admin Menu.")
             break
         
@@ -829,7 +907,7 @@ def display_regional_fertility_reports(conn):
     regions = get_all_regions(conn)
     if not regions:
         print("No regions found.")
-        return
+        return None, []
     
     print("\nAvailable Regions:")
     for idx, region in enumerate(regions, start=1):
@@ -840,15 +918,16 @@ def display_regional_fertility_reports(conn):
         choice = int(input("\nSelect a region by number: "))
         if choice < 1 or choice > len(regions):
             print("Invalid selection.")
-            return
+            return None, []
         selected_region = regions[choice - 1]['region_name']
     except ValueError:
         print("Invalid input.")
-        return
+        return None, []
+    
     reports = get_regional_fertility_reports(conn, selected_region)
     
     if not reports:
-        return
+        return selected_region, []
 
     # Print headers
     print(f"\n-- Regional Fertility Reports for {selected_region} --")
@@ -859,7 +938,7 @@ def display_regional_fertility_reports(conn):
     for row in reports:
         print(f"{row['region_name']:<20}{row['total_samples']:<15}{row['avg_nitrogen']:<15.2f}"
               f"{row['avg_phosphorus']:<15.2f}{row['avg_potassium']:<15.2f}{row['avg_moisture']:<15.2f}")
-    return reports
+    return selected_region, reports
 
 
 def export_report_to_csv(report_data, filename="regional_fertility_report.csv"):

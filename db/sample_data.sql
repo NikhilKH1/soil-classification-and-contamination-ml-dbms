@@ -52,7 +52,7 @@ INSERT INTO Fertility_Class (
 
 -- Crops
 INSERT INTO Crop (crop_name, fertility_class_id) VALUES
-('Wheat', 1), ('Rice', 1), ('Corn', 2), ('Soybean', 3), ('Tomato', 2);
+('Wheat', 1), ('Rice', 1), ('Corn', 2), ('Soybean', 3), ('Tomato', 2), ('Potato', 4);
 
 -- Fertilizers
 INSERT INTO Fertilizer (fertilizer_name, npk_ratio, fertility_class_id) VALUES

@@ -52,15 +52,23 @@ def update_user_role(user_id, new_role,
     finally:
         conn.close()
 
-def update_user_contact(user_id, new_contact):
+# def update_user_contact(user_id, new_contact):
+#     conn = get_connection()
+#     try:
+#         with conn.cursor() as cursor:
+#             cursor.callproc("sp_manage_users", [user_id, new_contact])
+#             conn.commit()
+#     finally:
+#         conn.close()
+
+def update_user_details(user_id, first_name=None, last_name=None, email=None, contact=None):
     conn = get_connection()
     try:
         with conn.cursor() as cursor:
-            cursor.callproc("sp_manage_users", [user_id, new_contact])
+            cursor.callproc("sp_manage_users", [user_id, first_name, last_name, email, contact])
             conn.commit()
     finally:
         conn.close()
-
 
 
 def add_farm_location(region_name, street, city, state, country, zipcode,
@@ -272,22 +280,6 @@ def get_farm_coordinates(farmer_id):
     finally:
         conn.close()
 
-def request_soil_sample(
-    farmer_id, lab_id, nitrogen, phosphorus, potassium,
-    calcium, magnesium, sulfur, lime, carbon, moisture,
-    latitude, longitude
-):
-    conn = get_connection()
-    try:
-        with conn.cursor() as cursor:
-            cursor.callproc("sp_request_soil_sample", [
-                farmer_id, lab_id, nitrogen, phosphorus, potassium,
-                calcium, magnesium, sulfur, lime, carbon, moisture,
-                latitude, longitude
-            ])
-            conn.commit()
-    finally:
-        conn.close()
 
 def get_soil_sample_results(soil_id):
     conn = get_connection()
@@ -370,11 +362,12 @@ def get_fertilizer_recommendations(crop_id):
 def get_all_labs():
     conn = get_connection()
     try:
-        with conn.cursor() as cursor:
+        with conn.cursor(pymysql.cursors.DictCursor) as cursor:
             cursor.callproc("sp_get_all_labs")
             return cursor.fetchall()
     finally:
         conn.close()
+
 
 def get_all_users():
     conn = get_connection()
@@ -501,13 +494,14 @@ def request_soil_sample_tested(
 ):
     conn = get_connection()
     try:
-        with conn.cursor() as cursor:
+        with conn.cursor(pymysql.cursors.DictCursor) as cursor:
             cursor.callproc("sp_request_soil_sample_tested", [
                 farmer_id, lab_id, n, p, k, ca, mg, s, lime, c, moisture,
                 lat, lon, sample_name
             ])
-            result = cursor.fetchall()
-            return result[0] if result else None
+            result = cursor.fetchone()
+            conn.commit()
+            return result
     finally:
         conn.close()
 
@@ -567,3 +561,42 @@ def get_all_crops(conn):
     with conn.cursor(pymysql.cursors.DictCursor) as cursor:
         cursor.callproc("sp_get_all_crops")
         return cursor.fetchall()
+
+def get_yield_estimate(growth_id):
+    conn = get_connection()
+    try:
+        with conn.cursor(pymysql.cursors.DictCursor) as cursor:
+            cursor.callproc("sp_get_yield_estimate", [growth_id])
+            result = cursor.fetchone()
+            return result['estimated_yield'] if result else None
+    finally:
+        conn.close()
+
+def get_years_experience(hire_date):
+    conn = get_connection()
+    try:
+        with conn.cursor(pymysql.cursors.DictCursor) as cursor:
+            cursor.callproc("sp_get_years_experience", [hire_date])
+            result = cursor.fetchone()
+            return result['years_of_experience'] if result else None
+    finally:
+        conn.close()
+
+def get_all_lab_technicians_with_experience():
+    conn = get_connection()
+    try:
+        with conn.cursor(pymysql.cursors.DictCursor) as cursor:
+            cursor.callproc("sp_get_all_lab_technicians_with_experience")
+            return cursor.fetchall()
+    finally:
+        conn.close()
+
+def delete_crop_growth_record(growth_id):
+    conn = get_connection()
+    try:
+        with conn.cursor() as cursor:
+            cursor.callproc("sp_delete_crop_growth_record", [growth_id])
+            conn.commit()
+    finally:
+        conn.close()
+

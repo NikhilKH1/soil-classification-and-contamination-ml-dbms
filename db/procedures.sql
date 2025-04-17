@@ -143,15 +143,15 @@ DELIMITER ;
 
 
 
-DELIMITER //
-CREATE PROCEDURE sp_manage_users(
-    IN in_user_id INT,
-    IN in_new_contact VARCHAR(15)
-)
-BEGIN
-    UPDATE User SET contact_number = in_new_contact WHERE user_id = in_user_id;
-END //
-DELIMITER ;
+-- DELIMITER //
+-- CREATE PROCEDURE sp_manage_users(
+--     IN in_user_id INT,
+--     IN in_new_contact VARCHAR(15)
+-- )
+-- BEGIN
+--     UPDATE User SET contact_number = in_new_contact WHERE user_id = in_user_id;
+-- END //
+-- DELIMITER ;
 
 
 
@@ -720,12 +720,6 @@ BEGIN
 END //
 DELIMITER ;
 
-CALL sp_get_latest_classified_soil_sample(2);
-
-
-
-CALL sp_get_latest_classified_soil_sample(2);
-
 
 DELIMITER //
 CREATE PROCEDURE sp_get_all_labs()
@@ -845,22 +839,7 @@ BEGIN
 END //
 DELIMITER ;
 
-CALL sp_get_latest_classified_soil_sample(33);
 
-
-Select * from User;
-
-SELECT ss.soil_id, ss.sample_name, ss.fertility_class_id, ss.test_date
-FROM Soil_Sample ss
-WHERE ss.farmer_id = 33
-ORDER BY ss.test_date DESC;
-
-SELECT * FROM Fertility_Class WHERE fertility_class_id = 4;
-
-SELECT *
-FROM Soil_Sample
-WHERE farmer_id = 33
-ORDER BY test_date DESC;
 
 DROP PROCEDURE IF EXISTS sp_request_soil_sample_tested;
 DELIMITER //
@@ -966,3 +945,63 @@ END //
 
 DELIMITER ;
 
+DELIMITER //
+CREATE PROCEDURE sp_get_yield_estimate(
+    IN in_growth_id INT
+)
+BEGIN
+    SELECT fn_calculate_yield_estimate(in_growth_id) AS estimated_yield;
+END //
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_get_years_experience(
+    IN in_hire_date DATE
+)
+BEGIN
+    SELECT fn_years_experience(in_hire_date) AS years_of_experience;
+END //
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_get_all_lab_technicians_with_experience()
+BEGIN
+    SELECT 
+        u.user_id,
+        u.first_name,
+        u.last_name,
+        u.email,
+        lt.hire_date,
+        fn_years_experience(lt.hire_date) AS experience
+    FROM User u
+    JOIN Lab_Technician lt ON u.user_id = lt.user_id;
+END //
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_delete_crop_growth_record(
+    IN in_growth_id INT
+)
+BEGIN
+    DELETE FROM Crop_Growth WHERE growth_id = in_growth_id;
+END //
+DELIMITER ;
+
+
+DELIMITER //
+CREATE PROCEDURE sp_manage_users(
+     IN in_user_id INT,
+     IN in_first_name VARCHAR(50),
+     IN in_last_name VARCHAR(50),
+     IN in_email VARCHAR(100),
+     IN in_contact VARCHAR(15)
+ )
+ BEGIN
+     UPDATE User
+    SET first_name = IFNULL(in_first_name, first_name),
+        last_name = IFNULL(in_last_name, last_name),
+        email = IFNULL(in_email, email),
+         contact_number = IFNULL(in_contact, contact_number)
+    WHERE user_id = in_user_id;
+ END //
+ DELIMITER ;
