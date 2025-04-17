@@ -1,8 +1,6 @@
 from .connection import get_connection
+import pymysql
 
-# ============================
-# 1. USER MANAGEMENT
-# ============================
 
 def create_user(first_name, last_name, email, password, contact, role,
                 admin_date=None, farm_size=None, crop_count=None,
@@ -66,9 +64,6 @@ def update_user_contact(user_id, new_contact):
         conn.close()
 
 
-# ============================
-# 2. FARM / SOIL MANAGEMENT
-# ============================
 
 def add_farm_location(region_name, street, city, state, country, zipcode,
                       latitude, longitude, user_id):
@@ -83,14 +78,16 @@ def add_farm_location(region_name, street, city, state, country, zipcode,
     finally:
         conn.close()
 
-def request_soil_sample(farmer_id, lab_id, n, p, k, ca, mg, s, lime, carbon, moisture,
-                        latitude, longitude):
+def request_soil_sample(
+    farmer_id, lab_id, n, p, k, ca, mg, s, lime, c, moisture,
+    lat, lon, sample_name
+):
     conn = get_connection()
     try:
         with conn.cursor() as cursor:
             cursor.callproc("sp_request_soil_sample", [
-                farmer_id, lab_id, n, p, k, ca, mg, s, lime, carbon, moisture,
-                latitude, longitude
+                farmer_id, lab_id, n, p, k, ca, mg, s, lime, c, moisture,
+                lat, lon, sample_name
             ])
             conn.commit()
     finally:
@@ -138,10 +135,6 @@ def classify_soil_sample(soil_id):
         conn.close()
 
 
-# ============================
-# 3. RECOMMENDATIONS
-# ============================
-
 def get_crop_recommendations(soil_id):
     conn = get_connection()
     try:
@@ -178,10 +171,6 @@ def get_combined_recommendations(soil_id):
     finally:
         conn.close()
 
-
-# ============================
-# 4. CROP GROWTH TRACKING
-# ============================
 
 def record_crop_growth(farmer_id, crop_id, start_date, end_date, status, yield_qty):
     conn = get_connection()
@@ -224,10 +213,6 @@ def map_farm_crop(latitude, longitude, crop_id):
     finally:
         conn.close()
 
-
-# ============================
-# 5. ADMIN / REPORTS
-# ============================
 
 def get_regional_fertility_reports(region_name):
     conn = get_connection()
@@ -330,11 +315,19 @@ def get_soil_sample_results(soil_id):
 def get_latest_classified_soil_sample(farmer_id):
     conn = get_connection()
     try:
-        with conn.cursor() as cursor:
-            cursor.callproc("sp_get_latest_classified_soil_sample", [farmer_id])
-            return cursor.fetchone()
+        with conn.cursor(pymysql.cursors.DictCursor) as cursor:
+            cursor.callproc("sp_get_latest_classified_soil_sample", (farmer_id,))
+            result = cursor.fetchone()
+            return result
     finally:
         conn.close()
+
+def get_farm_location_by_farmer(conn, farmer_id):
+    with conn.cursor(pymysql.cursors.DictCursor) as cursor:
+        cursor.callproc("sp_get_farm_location_by_farmer", (farmer_id,))
+        return cursor.fetchone()
+
+
 
 def record_crop_growth(farmer_id, crop_id, start_date, end_date, status, yield_qty):
     conn = get_connection()
@@ -472,13 +465,10 @@ def set_fertility_thresholds(fertility_class_id, threshold_values):
 def get_regional_fertility_reports(conn, region_name):
     try:
         with conn.cursor() as cursor:
-            # Call the stored procedure with the region_name as parameter
             cursor.callproc('sp_get_regional_fertility_reports', (region_name,))
             
-            # Fetch all the results from the stored procedure
             result = cursor.fetchall()
-            
-            # If no results are found
+
             if not result:
                 print(f"No fertility data found for region: {region_name}")
                 return []
@@ -505,7 +495,7 @@ def classify_soil_sample(soil_id):
             cursor.callproc("sp_classify_soil_sample", [soil_id])
             result = cursor.fetchone()
             conn.commit()
-            return result  # contains Fertility_Class_ID
+            return result 
     finally:
         conn.close()
 
@@ -518,18 +508,45 @@ def get_lab_pending_samples(lab_id):
     finally:
         conn.close()
 
-def request_soil_sample_tested(farmer_id, lab_id, n, p, k, ca, mg, s, lime, c, moisture, lat, lon):
+def request_soil_sample_tested(
+    farmer_id, lab_id, n, p, k, ca, mg, s, lime, c, moisture,
+    lat, lon, sample_name
+):
     conn = get_connection()
     try:
         with conn.cursor() as cursor:
             cursor.callproc("sp_request_soil_sample_tested", [
-                farmer_id, lab_id, n, p, k, ca, mg, s, lime, c, moisture, lat, lon
+                farmer_id, lab_id, n, p, k, ca, mg, s, lime, c, moisture,
+                lat, lon, sample_name
             ])
-            result = cursor.fetchone()
-            conn.commit()
-            return result
+            result = cursor.fetchall()
+            print("Soil Sample", result)
+            return result[0] if result else None
     finally:
         conn.close()
 
 
 
+def get_all_classified_soil_samples(farmer_id):
+    conn = get_connection()
+    try:
+        with conn.cursor() as cursor:
+            cursor.callproc("sp_get_all_classified_soil_samples", [farmer_id])
+            return cursor.fetchall()
+    finally:
+        conn.close()
+
+
+def get_tested_samples_by_lab(lab_id):
+    conn = get_connection()
+    try:
+        with conn.cursor(pymysql.cursors.DictCursor) as cursor:
+            cursor.callproc("sp_get_tested_samples_by_lab", (lab_id,))
+            return cursor.fetchall()
+    finally:
+        conn.close()
+
+def get_all_crops(conn):
+    with conn.cursor(pymysql.cursors.DictCursor) as cursor:
+        cursor.callproc("sp_get_all_crops")
+        return cursor.fetchall()

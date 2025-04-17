@@ -30,7 +30,12 @@ from db.stored_procedures import (
     submit_soil_test_results,
     classify_soil_sample,
     get_lab_pending_samples,
-    request_soil_sample_tested
+    request_soil_sample_tested,
+    get_all_classified_soil_samples,
+    get_tested_samples_by_lab,
+    get_soil_sample_results,
+    get_all_crops
+
 )
 
 
@@ -155,13 +160,14 @@ def farmer_dashboard(conn, user):
         print("1: Add Farm Location")
         print("2: Request Soil Sample Test")
         print("3: View My Soil Test Results")
-        print("4: View Recommended Crops for the Soil Test Result ")
-        print("5: View Recommended Fertilizers for the Soil Test Result")
-        print("6: Record Crop Growth")
-        print("7: Update Crop Growth Status")
-        print("8: View Crop Growth")
-        print("9: Map Crop to My Farm")
-        print("10: Back to Main Menu")
+        print("4: View All Test Results")
+        print("5: View Recommended Crops for the Soil Test Result ")
+        print("6: View Recommended Fertilizers for the Soil Test Result")
+        print("7: Record Crop Growth")
+        print("8: Update Crop Growth Status")
+        print("9: View Crop Growth")
+        print("10: Map Crop to My Farm")
+        print("11: Back to Main Menu")
 
         choice = input("Enter your choice: ").strip()
 
@@ -172,21 +178,39 @@ def farmer_dashboard(conn, user):
         elif choice == "3":
             view_farmer_soil_results_flow(conn, farmer_id)
         elif choice == "4":
-            view_crop_recommendations_flow(conn, farmer_id)
+            view_all_soil_results(conn, farmer_id)
         elif choice == "5":
-            view_fertilizer_recommendations_flow(conn, farmer_id)
+            view_crop_recommendations_flow(conn, farmer_id)
         elif choice == "6":
-            record_crop_growth_flow(conn, farmer_id)
+            view_fertilizer_recommendations_flow(conn, farmer_id)
         elif choice == "7":
-            update_crop_growth_flow(conn, farmer_id)
+            record_crop_growth_flow(conn, farmer_id)
         elif choice == "8":
-            view_crop_growth_flow(conn, farmer_id)
+            update_crop_growth_flow(conn, farmer_id)
         elif choice == "9":
-            map_crop_to_farm_flow(conn, farmer_id)
+            view_crop_growth_flow(conn, farmer_id)
         elif choice == "10":
+            map_crop_to_farm_flow(conn, farmer_id)
+        elif choice == "11":
             break
         else:
-            print("Invalid choice. Please enter 1 to 10.")
+            print("Invalid choice. Please enter 1 to 11.")
+
+def view_all_soil_results(conn, farmer_id):
+    print("\n-- All Soil Test Results --")
+    try:
+        results = get_all_classified_soil_samples(farmer_id)
+        if not results:
+            print("No soil results found.")
+            return
+
+        for res in results:
+            print(f"Sample ID: {res['soil_id']} | Date: {res['test_date']} | "
+                  f"Fertility: {res['class_name']} - {res['description']}")
+    except Exception as e:
+        print(f"Error: {e}")
+
+
 
 def map_crop_to_farm_flow(conn, farmer_id):
     print("\n-- Map Crop to Farm --")
@@ -198,9 +222,7 @@ def map_crop_to_farm_flow(conn, farmer_id):
 
         lat, lon = coords["latitude"], coords["longitude"]
 
-        with conn.cursor() as cursor:
-            cursor.execute("SELECT crop_id, crop_name FROM Crop")
-            crops = cursor.fetchall()
+        crops = get_all_crops(conn)
 
         if not crops:
             print("No crops available. Ask Admin to add crops first.")
@@ -221,6 +243,7 @@ def map_crop_to_farm_flow(conn, farmer_id):
 
     except Exception as e:
         print(f" Error mapping crop to farm: {e}")
+
 
 
 def view_crop_growth_flow(conn, farmer_id):
@@ -279,7 +302,7 @@ def record_crop_growth_flow(conn, farmer_id):
             print("No crops available for your soil.")
             return
 
-        print("\n📋 Choose a Crop:")
+        print("\n Choose a Crop:")
         for i, crop in enumerate(crops):
             print(f"{i + 1}. {crop['crop_name']}")
         idx = int(input("Enter crop number: ")) - 1
@@ -329,7 +352,13 @@ def request_soil_sample_flow(conn, farmer_id):
             print("\n Invalid Lab ID. Please select from the list above.")
             return
 
-        # Shared variables
+        raw_input = input("\nEnter a name to identify this sample (e.g., 'North Plot - Morning'): ").strip()
+
+        if not (raw_input.startswith('"') and raw_input.endswith('"')):
+            sample_name = f'"{raw_input}"'
+        else:
+            sample_name = raw_input
+
         n = p = k = ca = mg = s = lime = c = moisture = None
 
         if mode == "1":
@@ -345,19 +374,20 @@ def request_soil_sample_flow(conn, farmer_id):
             moisture = float(input("Moisture %: "))
 
             result = request_soil_sample_tested(
-                farmer_id, lab_id, n, p, k, ca, mg, s, lime, c, moisture, lat, lon
+                farmer_id, lab_id, n, p, k, ca, mg, s, lime, c, moisture, lat, lon, sample_name
             )
             print("\nSoil sample request submitted and classified successfully!")
-            print(f"Sample ID: {result['soil_id']}, Fertility Class ID: {result['fertility_class_id']}")
+            print(f"Sample ID: {result['soil_id']}, Fertility Class ID: {result['fertility_class_id']}, Sample name: {sample_name}")
 
         elif mode == "2":
             request_soil_sample(
-                farmer_id, lab_id, n, p, k, ca, mg, s, lime, c, moisture, lat, lon
+                farmer_id, lab_id, n, p, k, ca, mg, s, lime, c, moisture, lat, lon, sample_name
             )
             print("\nSoil sample request submitted successfully! (pending lab technician input)")
 
     except Exception as e:
         print(f"\n Error requesting soil sample: {e}")
+
 
 
 def view_fertilizer_recommendations_flow(conn, farmer_id):
@@ -398,12 +428,15 @@ def view_fertilizer_recommendations_flow(conn, farmer_id):
 def view_farmer_soil_results_flow(conn, farmer_id):
     print("\n-- View Soil Test Results --")
     try:
-        result = get_latest_classified_soil_sample(farmer_id)
+        print(farmer_id)
+        result = get_latest_classified_soil_sample(farmer_id) 
 
         if result:
-            class_name = result["class_name"]
-            description = result["description"]
-            print(f"Fertility Class: {class_name} - {description}")
+            sample_name = result.get("sample_name")
+            if sample_name is None:
+                sample_name = "Unnamed Sample"
+            print(f"\nSample Name: {sample_name}")
+            print(f"Fertility Class: {result['class_name']} - {result['description']}")
         else:
             print("No classified soil sample found. Try submitting a test with complete details.")
     except Exception as e:
@@ -452,8 +485,7 @@ def lab_technician_dashboard(conn, user):
         print("1: View Assigned Soil Samples")
         print("2: Submit Soil Test Results")
         print("3: View Soil Sample Results")
-        print("4: Classify Soil Sample (Manual)")
-        print("5: Back to Main Menu")
+        print("4: Back to Main Menu")
 
         choice = input("Enter your choice: ").strip()
 
@@ -462,13 +494,65 @@ def lab_technician_dashboard(conn, user):
         elif choice == "2":
             submit_test_results(conn, user)
         elif choice == "3":
-            view_soil_sample_results_flow(conn)
+            view_soil_sample_results_flow(conn, user)
         elif choice == "4":
-            classify_soil_sample_flow(conn)
-        elif choice == "5":
             break
         else:
-            print("Invalid input. Choose 1-5.")
+            print("Invalid input. Choose 1-4.")
+
+def view_soil_sample_results_flow(conn, user):
+    print("\n-- View Soil Sample Results --")
+    try:
+        lab_id = user.get("lab_id")
+        if lab_id is None:
+            print("Lab ID not found for this technician.")
+            return
+
+        samples = get_tested_samples_by_lab(lab_id)
+
+        if not samples:
+            print("No tested soil samples found for your lab.")
+            return
+
+        print("\n Tested Samples in Your Lab:")
+        for s in samples:
+            sample_name = s["sample_name"] or "Unnamed Sample"
+            print(f"  - Soil ID: {s['soil_id']} | Sample: {sample_name} | Fertility: {s['class_name']} | Date: {s['test_date'].strftime('%Y-%m-%d')} | Farmer ID: {s['farmer_id']}")
+
+        soil_id_input = input("\nEnter Soil Sample ID to view full details (or press Enter to skip): ").strip()
+        if not soil_id_input:
+            return
+
+        try:
+            soil_id = int(soil_id_input)
+        except ValueError:
+            print("Invalid Soil ID. Please enter a valid number.")
+            return
+        
+        result = get_soil_sample_results(soil_id)
+
+        if result:
+            print("\n📋 Full Soil Sample Details:")
+            print(f"Sample ID     : {result['soil_id']}")
+            print(f"Sample Name   : {result['sample_name'] or 'Unnamed Sample'}")
+            print(f"Farmer ID     : {result['farmer_id']}")
+            print(f"Date          : {result['test_date']}")
+            print(f"Fertility     : {result['class_name']} - {result['description']}")
+            print(f"Nitrogen (N)  : {result['nitrogen']}")
+            print(f"Phosphorus (P): {result['phosphorus']}")
+            print(f"Potassium (K) : {result['potassium']}")
+            print(f"Calcium (Ca)  : {result['calcium']}")
+            print(f"Magnesium (Mg): {result['magnesium']}")
+            print(f"Sulfur (S)    : {result['sulfur']}")
+            print(f"Lime          : {result['lime']}")
+            print(f"Carbon (C)    : {result['carbon']}")
+            print(f"Moisture %    : {result['moisture']}")
+        else:
+            print("No detailed result found for that Soil ID.")
+
+    except Exception as e:
+        print(f"Error viewing sample results: {e}")
+
 
 def submit_test_results(conn, technician):
     print("\n-- Submit Soil Test Results --")
@@ -559,7 +643,6 @@ def admin_manage_users_flow(conn):
         
         if choice == "1":
             try:
-                # This function calls the stored procedure 'sp_get_all_users'
                 users = get_all_users()
                 if users:
                     print("\n--- List of Users ---")
@@ -574,7 +657,6 @@ def admin_manage_users_flow(conn):
             try:
                 user_id = int(input("Enter the User ID to update contact information: "))
                 new_contact = input("Enter the new contact number: ")
-                # Calls the stored procedure function from stored_procedures.py
                 update_user_contact(user_id, new_contact)
                 print("User contact updated successfully.")
             except Exception as e:
@@ -628,10 +710,8 @@ def manage_soil_test_labs_flow(conn):
 def update_soil_thresholds_flow(conn):
     print("\n-- Update Soil Fertility Thresholds --")
     try:
-        # Take user input for fertility class ID
         class_id = int(input("Enter Fertility Class ID to update: "))
 
-        # Ask the user which thresholds they want to update
         print("Which fertility thresholds would you like to update?")
         print("You can update multiple fields by entering the corresponding numbers separated by commas.")
         print("1: Min Nitrogen")
@@ -654,11 +734,9 @@ def update_soil_thresholds_flow(conn):
 
         threshold_choices = input("Enter your choices (e.g., 1, 2, 3 or 'all'): ").strip()
 
-        # Create a dictionary to hold the new values for the updated fields
         updated_values = {}
 
         if threshold_choices.lower() == 'all':
-            # If the user wants to update all fields, prompt for values for all fields
             updated_values["min_nitrogen"] = float(input("Enter new Min Nitrogen: "))
             updated_values["max_nitrogen"] = float(input("Enter new Max Nitrogen: "))
             updated_values["min_phosphorus"] = float(input("Enter new Min Phosphorus: "))
@@ -676,7 +754,6 @@ def update_soil_thresholds_flow(conn):
             updated_values["min_moisture"] = float(input("Enter new Min Moisture: "))
             updated_values["max_moisture"] = float(input("Enter new Max Moisture: "))
         else:
-            # If the user wants to update specific fields, ask for values for those fields
             threshold_choices_list = threshold_choices.split(',')
             for choice in threshold_choices_list:
                 choice = choice.strip()
@@ -715,8 +792,6 @@ def update_soil_thresholds_flow(conn):
                 else:
                     print(f"Invalid choice: {choice}")
                     return
-
-        # Call the set_fertility_thresholds function
         set_fertility_thresholds(class_id, updated_values)
 
     except Exception as e:
@@ -728,12 +803,10 @@ def display_regional_fertility_reports(conn, region_name):
     if not reports:
         return
 
-    # Print headers
     print(f"\n-- Regional Fertility Reports for {region_name} --")
     print(f"{'Region':<20}{'Total Samples':<15}{'Avg Nitrogen':<15}{'Avg Phosphorus':<15}{'Avg Potassium':<15}{'Avg Moisture':<15}")
     print("-" * 95)
 
-    # Print data
     for row in reports:
         print(f"{row['region_name']:<20}{row['total_samples']:<15}{row['avg_nitrogen']:<15.2f}"
               f"{row['avg_phosphorus']:<15.2f}{row['avg_potassium']:<15.2f}{row['avg_moisture']:<15.2f}")
