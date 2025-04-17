@@ -178,6 +178,7 @@ END //
 DELIMITER ;
 
 
+DROP PROCEDURE IF EXISTS sp_request_soil_sample;
 DELIMITER //
 CREATE PROCEDURE sp_request_soil_sample(
     IN in_farmer_id INT,
@@ -192,20 +193,22 @@ CREATE PROCEDURE sp_request_soil_sample(
     IN in_carbon DECIMAL(5,2),
     IN in_moisture DECIMAL(5,2),
     IN in_farm_latitude DECIMAL(9,6),
-    IN in_farm_longitude DECIMAL(9,6)
+    IN in_farm_longitude DECIMAL(9,6),
+    IN in_sample_name VARCHAR(100)
 )
 BEGIN
-    INSERT INTO Soil_Sample(
+    INSERT INTO Soil_Sample (
         farmer_id, lab_id, nitrogen, phosphorus, potassium,
         calcium, magnesium, sulfur, lime, carbon, moisture,
-        test_date, farm_latitude, farm_longitude, sample_status
+        test_date, farm_latitude, farm_longitude, sample_status, sample_name
     ) VALUES (
         in_farmer_id, in_lab_id, in_nitrogen, in_phosphorus, in_potassium,
         in_calcium, in_magnesium, in_sulfur, in_lime, in_carbon, in_moisture,
-        NOW(), in_farm_latitude, in_farm_longitude, 'waiting'
+        NOW(), in_farm_latitude, in_farm_longitude, 'waiting', in_sample_name
     );
 END //
 DELIMITER ;
+
 
 
 DELIMITER //
@@ -550,27 +553,23 @@ DELIMITER ;
    4. Triggers
    =============================== */
 
+
+DROP TRIGGER IF EXISTS trg_auto_set_fertility_class;
 DELIMITER //
+
 CREATE TRIGGER trg_auto_set_fertility_class
 BEFORE INSERT ON Soil_Sample
 FOR EACH ROW
 BEGIN
-    IF NEW.nitrogen IS NOT NULL 
-       AND NEW.phosphorus IS NOT NULL 
-       AND NEW.potassium IS NOT NULL THEN
-       SET NEW.fertility_class_id = fn_calculate_fertility_class(
-            NEW.nitrogen, 
-            NEW.phosphorus, 
-            NEW.potassium, 
-            NEW.calcium, 
-            NEW.magnesium, 
-            NEW.sulfur, 
-            NEW.lime, 
-            NEW.carbon, 
-            NEW.moisture
-       );
-    END IF;
-END //
+  IF NEW.nitrogen IS NOT NULL AND NEW.phosphorus IS NOT NULL AND NEW.potassium IS NOT NULL THEN
+    SET NEW.fertility_class_id = fn_calculate_fertility_class(
+      NEW.nitrogen, NEW.phosphorus, NEW.potassium,
+      NEW.calcium, NEW.magnesium, NEW.sulfur,
+      NEW.lime, NEW.carbon, NEW.moisture
+    );
+  END IF;
+END;
+//
 DELIMITER ;
 
 
@@ -707,11 +706,11 @@ JOIN Farm_Location fl
   ON ss.farm_latitude = fl.latitude AND ss.farm_longitude = fl.longitude
 WHERE ss.sample_status = 'waiting';
 
-
+DROP PROCEDURE IF EXISTS sp_get_latest_classified_soil_sample;
 DELIMITER //
 CREATE PROCEDURE sp_get_latest_classified_soil_sample(IN in_farmer_id INT)
 BEGIN
-    SELECT ss.soil_id, ss.fertility_class_id, fc.class_name, fc.description
+    SELECT ss.soil_id, ss.sample_name, ss.fertility_class_id, fc.class_name, fc.description
     FROM Soil_Sample ss
     JOIN Fertility_Class fc ON ss.fertility_class_id = fc.fertility_class_id
     WHERE ss.farmer_id = in_farmer_id
@@ -720,6 +719,10 @@ BEGIN
     LIMIT 1;
 END //
 DELIMITER ;
+
+CALL sp_get_latest_classified_soil_sample(2);
+
+
 
 CALL sp_get_latest_classified_soil_sample(2);
 
@@ -811,10 +814,56 @@ BEGIN
       AND sample_status = 'waiting';
 END //
 
-DELIMITER ;
+
 
 DELIMITER //
+CREATE PROCEDURE sp_get_all_classified_soil_samples(
+    IN in_farmer_id INT
+)
+BEGIN
+    SELECT ss.soil_id, ss.test_date, fc.class_name, fc.description
+    FROM Soil_Sample ss
+    JOIN Fertility_Class fc ON ss.fertility_class_id = fc.fertility_class_id
+    WHERE ss.farmer_id = in_farmer_id
+      AND ss.fertility_class_id IS NOT NULL
+    ORDER BY ss.test_date DESC;
+END //
+DELIMITER ;
 
+
+DELIMITER //
+CREATE PROCEDURE sp_get_tested_samples_by_lab(
+    IN in_lab_id INT
+)
+BEGIN
+    SELECT ss.soil_id, ss.sample_name, ss.test_date, ss.farmer_id, fc.class_name
+    FROM Soil_Sample ss
+    JOIN Fertility_Class fc ON ss.fertility_class_id = fc.fertility_class_id
+    WHERE ss.lab_id = in_lab_id
+      AND ss.sample_status = 'tested'
+    ORDER BY ss.test_date DESC;
+END //
+DELIMITER ;
+
+CALL sp_get_latest_classified_soil_sample(33);
+
+
+Select * from User;
+
+SELECT ss.soil_id, ss.sample_name, ss.fertility_class_id, ss.test_date
+FROM Soil_Sample ss
+WHERE ss.farmer_id = 33
+ORDER BY ss.test_date DESC;
+
+SELECT * FROM Fertility_Class WHERE fertility_class_id = 4;
+
+SELECT *
+FROM Soil_Sample
+WHERE farmer_id = 33
+ORDER BY test_date DESC;
+
+DROP PROCEDURE IF EXISTS sp_request_soil_sample_tested;
+DELIMITER //
 CREATE PROCEDURE sp_request_soil_sample_tested(
     IN in_farmer_id INT,
     IN in_lab_id INT,
@@ -828,34 +877,53 @@ CREATE PROCEDURE sp_request_soil_sample_tested(
     IN in_carbon DECIMAL(5,2),
     IN in_moisture DECIMAL(5,2),
     IN in_farm_latitude DECIMAL(9,6),
-    IN in_farm_longitude DECIMAL(9,6)
+    IN in_farm_longitude DECIMAL(9,6),
+    IN in_sample_name VARCHAR(100)
 )
 BEGIN
     DECLARE fert_class_id INT;
 
-    -- Calculate fertility class
     SET fert_class_id = fn_calculate_fertility_class(
         in_nitrogen, in_phosphorus, in_potassium, in_calcium,
         in_magnesium, in_sulfur, in_lime, in_carbon, in_moisture
     );
 
-    -- Insert soil sample as tested with fertility class
     INSERT INTO Soil_Sample (
         farmer_id, lab_id, nitrogen, phosphorus, potassium,
         calcium, magnesium, sulfur, lime, carbon, moisture,
-        test_date, farm_latitude, farm_longitude, sample_status, fertility_class_id
+        test_date, farm_latitude, farm_longitude,
+        sample_status, fertility_class_id, sample_name
     ) VALUES (
         in_farmer_id, in_lab_id, in_nitrogen, in_phosphorus, in_potassium,
         in_calcium, in_magnesium, in_sulfur, in_lime, in_carbon, in_moisture,
-        NOW(), in_farm_latitude, in_farm_longitude, 'tested', fert_class_id
+        NOW(), in_farm_latitude, in_farm_longitude,
+        'tested', fert_class_id, in_sample_name
     );
 
-    -- Return the inserted row's ID and class
-    SELECT LAST_INSERT_ID() AS soil_id, fert_class_id AS fertility_class_id;
+    SELECT LAST_INSERT_ID() AS soil_id, fert_class_id AS fertility_class_id, in_sample_name AS sample_name;
 END //
-
 DELIMITER ;
--- new additions 16/4
+
+DELIMITER //
+CREATE PROCEDURE sp_get_farm_location_by_farmer(
+    IN in_farmer_id INT
+)
+BEGIN
+    SELECT latitude, longitude
+    FROM Farm_Location
+    WHERE farmer_id = in_farmer_id
+    LIMIT 1;
+END //
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE sp_get_all_crops()
+BEGIN
+    SELECT crop_id, crop_name FROM Crop;
+END //
+DELIMITER ;
+
+
 DELIMITER //
 
 CREATE PROCEDURE sp_get_all_fertility_classes()
