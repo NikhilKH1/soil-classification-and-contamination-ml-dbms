@@ -27,21 +27,6 @@ def map_crop_to_farm(lat, lon, crop_id):
     finally:
         conn.close()
 
-def admin_exists(conn):
-    try:
-        with conn.cursor() as cursor:
-            args = [0] 
-            cursor.callproc("sp_admin_exists", args)
-
-            cursor.execute("SELECT @_sp_admin_exists_0")
-            result = cursor.fetchone()
-            if result:
-                return result['@_sp_admin_exists_0'] >= 1
-            return False
-    except Exception as e:
-        print(f"Error checking admin existence: {e}")
-        return False
-
 def authenticate_user(email, password):
     conn = get_connection()
     try:
@@ -522,7 +507,6 @@ def request_soil_sample_tested(
                 lat, lon, sample_name
             ])
             result = cursor.fetchall()
-            print("Soil Sample", result)
             return result[0] if result else None
     finally:
         conn.close()

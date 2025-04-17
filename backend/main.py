@@ -37,8 +37,7 @@ from db.stored_procedures import (
     get_all_crops,
     get_all_fertility_classes,
     get_fertility_class_by_id,
-    get_all_regions,
-    admin_exists
+    get_all_regions
 )
 
 
@@ -101,9 +100,9 @@ def register_user(conn):
         email = input("Enter Email: ")
         password = getpass("Enter Password: ")
         contact = input("Enter Contact: ")
-        roles = ['Farmer', 'Lab_Technician']
-        if not admin_exists(conn):
-            roles.append('Admin')
+        roles = ['Farmer', 'Lab_Technician', 'Admin']
+        # if not admin_exists(conn):
+        #     roles.append('Admin')
 
         print(f"Available Roles: {', '.join(roles)}")
         role = input("Enter Role: ")
@@ -131,7 +130,7 @@ def register_user(conn):
             cert, specialization, hire_date, lab_id
         )
 
-        print(f"\nUser registered successfully: {user}")
+        print(f"\nUser registered successfully")
 
     except Exception as e:
         print(f"\nRegistration error: {e}")
@@ -386,7 +385,6 @@ def request_soil_sample_flow(conn, farmer_id):
                 farmer_id, lab_id, n, p, k, ca, mg, s, lime, c, moisture, lat, lon, sample_name
             )
             print("\nSoil sample request submitted and classified successfully!")
-            print(f"Sample ID: {result['soil_id']}, Fertility Class ID: {result['fertility_class_id']}, Sample name: {sample_name}")
 
         elif mode == "2":
             request_soil_sample(
@@ -694,7 +692,6 @@ def manage_soil_test_labs_flow(conn):
             else:
                 print("\n-- Soil Test Labs --")
                 for lab in labs:
-                    print(lab)
                     print(f"ID: {lab.get('lab_id')}, Name: {lab.get('lab_name')}, Location: {lab.get('address')}, Contact: {lab.get('contact')}")
 
         elif choice == "2":

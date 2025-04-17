@@ -966,13 +966,3 @@ END //
 
 DELIMITER ;
 
-DELIMITER //
-
-CREATE PROCEDURE sp_admin_exists(OUT admin_count INT)
-BEGIN
-    SELECT COUNT(*) INTO admin_count
-    FROM User
-    WHERE role = 'Admin';
-END //
-
-DELIMITER ;
