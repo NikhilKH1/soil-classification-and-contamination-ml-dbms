@@ -1,9 +1,5 @@
 from .connection import get_connection
 
-# ============================
-# 1. USER MANAGEMENT
-# ============================
-
 def create_user(first_name, last_name, email, password, contact, role,
                 admin_date=None, farm_size=None, crop_count=None,
                 cert=None, specialization=None, hire_date=None, lab_id=None):
@@ -30,6 +26,20 @@ def map_crop_to_farm(lat, lon, crop_id):
     finally:
         conn.close()
 
+def admin_exists(conn):
+    try:
+        with conn.cursor() as cursor:
+            args = [0] 
+            cursor.callproc("sp_admin_exists", args)
+
+            cursor.execute("SELECT @_sp_admin_exists_0")
+            result = cursor.fetchone()
+            if result:
+                return result['@_sp_admin_exists_0'] >= 1
+            return False
+    except Exception as e:
+        print(f"Error checking admin existence: {e}")
+        return False
 
 def authenticate_user(email, password):
     conn = get_connection()
@@ -66,9 +76,6 @@ def update_user_contact(user_id, new_contact):
         conn.close()
 
 
-# ============================
-# 2. FARM / SOIL MANAGEMENT
-# ============================
 
 def add_farm_location(region_name, street, city, state, country, zipcode,
                       latitude, longitude, user_id):
@@ -138,10 +145,6 @@ def classify_soil_sample(soil_id):
         conn.close()
 
 
-# ============================
-# 3. RECOMMENDATIONS
-# ============================
-
 def get_crop_recommendations(soil_id):
     conn = get_connection()
     try:
@@ -179,9 +182,6 @@ def get_combined_recommendations(soil_id):
         conn.close()
 
 
-# ============================
-# 4. CROP GROWTH TRACKING
-# ============================
 
 def record_crop_growth(farmer_id, crop_id, start_date, end_date, status, yield_qty):
     conn = get_connection()
@@ -225,9 +225,6 @@ def map_farm_crop(latitude, longitude, crop_id):
         conn.close()
 
 
-# ============================
-# 5. ADMIN / REPORTS
-# ============================
 
 def get_regional_fertility_reports(region_name):
     conn = get_connection()
@@ -472,13 +469,10 @@ def set_fertility_thresholds(fertility_class_id, threshold_values):
 def get_regional_fertility_reports(conn, region_name):
     try:
         with conn.cursor() as cursor:
-            # Call the stored procedure with the region_name as parameter
             cursor.callproc('sp_get_regional_fertility_reports', (region_name,))
             
-            # Fetch all the results from the stored procedure
             result = cursor.fetchall()
             
-            # If no results are found
             if not result:
                 print(f"No fertility data found for region: {region_name}")
                 return []
@@ -505,7 +499,7 @@ def classify_soil_sample(soil_id):
             cursor.callproc("sp_classify_soil_sample", [soil_id])
             result = cursor.fetchone()
             conn.commit()
-            return result  # contains Fertility_Class_ID
+            return result 
     finally:
         conn.close()
 
@@ -531,5 +525,36 @@ def request_soil_sample_tested(farmer_id, lab_id, n, p, k, ca, mg, s, lime, c, m
     finally:
         conn.close()
 
+def get_all_fertility_classes():
+    conn = get_connection()
+    try:
+        with conn.cursor() as cursor:
+            cursor.callproc("sp_get_all_fertility_classes")
+            result = cursor.fetchall()
+            return result
+    finally:
+        conn.close()
+
+def get_fertility_class_by_id(class_id):
+    conn = get_connection()
+    try:
+        with conn.cursor() as cursor:
+            cursor.callproc("sp_get_fertility_class_by_id", [class_id])
+            result = cursor.fetchone()
+            if not result:
+                return None
+            return result
+    finally:
+        conn.close()
+
+def get_all_regions(conn):
+    try:
+        with conn.cursor() as cursor:
+            cursor.callproc("sp_get_all_regions")
+            results = cursor.fetchall()
+            return results
+    except Exception as e:
+        print(f"Error fetching regions: {e}")
+        return []
 
 

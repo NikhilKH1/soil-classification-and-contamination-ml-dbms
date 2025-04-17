@@ -1,5 +1,5 @@
-CREATE DATABASE IF NOT EXISTS crop_fertlizer_db;
-USE crop_fertlizer_db;
+CREATE DATABASE IF NOT EXISTS crop_fertilizer_db;
+USE crop_fertilizer_db;
 
 CREATE TABLE User (
     user_id INT PRIMARY KEY AUTO_INCREMENT,
