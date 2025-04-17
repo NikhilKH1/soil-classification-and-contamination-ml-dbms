@@ -855,3 +855,56 @@ BEGIN
 END //
 
 DELIMITER ;
+-- new additions 16/4
+DELIMITER //
+
+CREATE PROCEDURE sp_get_all_fertility_classes()
+BEGIN
+    SELECT fertility_class_id, class_name FROM Fertility_Class ORDER BY fertility_class_id;
+END //
+
+DELIMITER ;
+
+DELIMITER //
+
+CREATE PROCEDURE sp_get_fertility_class_by_id(
+    IN in_class_id INT
+)
+BEGIN
+    SELECT 
+        fertility_class_id, class_name,
+        min_nitrogen, max_nitrogen,
+        min_phosphorus, max_phosphorus,
+        min_potassium, max_potassium,
+        min_calcium, max_calcium,
+        min_carbon, max_carbon,
+        min_lime, max_lime,
+        min_sulfur, max_sulfur,
+        min_moisture, max_moisture
+    FROM Fertility_Class
+    WHERE fertility_class_id = in_class_id;
+END //
+
+DELIMITER ;
+
+DELIMITER //
+
+CREATE PROCEDURE sp_get_all_regions()
+BEGIN
+    SELECT DISTINCT region_name 
+    FROM Farm_Location 
+    ORDER BY region_name;
+END //
+
+DELIMITER ;
+
+DELIMITER //
+
+CREATE PROCEDURE sp_admin_exists(OUT admin_count INT)
+BEGIN
+    SELECT COUNT(*) INTO admin_count
+    FROM User
+    WHERE role = 'Admin';
+END //
+
+DELIMITER ;
