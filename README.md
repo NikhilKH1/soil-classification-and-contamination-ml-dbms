@@ -87,15 +87,11 @@ Stored Procedures & Queries
 ---
 
 ## 📁 Project Structure
-.
+
 - main.py # Entry point for ML + DBMS workflow
-
 - connection.py # Database connection configuration
-
-─ stored_procedures.py # SQL stored procedures and queries
-
-─ README.md # Project documentation
-
+- stored_procedures.py # SQL stored procedures and queries
+- README.md # Project documentation
 
 ---
 
