@@ -55,13 +55,13 @@ Data is validated and normalized before being passed into the ML pipeline.
 
 ## 🏗️ System Architecture
 User / Input Data
-↓
+→
 Python Application
-↓
+→
 ML Model (Prediction & Classification)
-↓
+→
 MySQL Database
-↓
+→
 Stored Procedures & Queries
 
 
@@ -88,10 +88,13 @@ Stored Procedures & Queries
 
 ## 📁 Project Structure
 .
-├── main.py # Entry point for ML + DBMS workflow
-├── connection.py # Database connection configuration
-├── stored_procedures.py # SQL stored procedures and queries
-├── README.md # Project documentation
+- main.py # Entry point for ML + DBMS workflow
+
+- connection.py # Database connection configuration
+
+─ stored_procedures.py # SQL stored procedures and queries
+
+─ README.md # Project documentation
 
 
 ---
@@ -111,14 +114,18 @@ Stored Procedures & Queries
 ```bash
 git clone https://github.com/NikhilKH1/soil-classification-and-contamination-ml-dbms.git
 cd soil-classification-and-contamination-ml-dbms
+```
 2️⃣ Configure Database
 Update database credentials in:
-
+```bash
 connection.py
+```
 Ensure MySQL is running and required tables/stored procedures are created.
 
 3️⃣ Run the application
+```bash
 python main.py
+```
 📈 Results and Outcomes
 Accurate soil classification using ML models
 
@@ -139,4 +146,6 @@ Deploy using cloud-based ML and DB services
 
 📚 Reference
 Springer Research Paper:
+```bash
 https://link.springer.com/chapter/10.1007/978-981-16-3342-3_3
+```
